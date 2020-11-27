@@ -64,6 +64,8 @@ int main(){
         print_packet_payload(output_packet);
         errorStatus ret = can->SendPacket(output_packet, target_device);
 
+        sleep(1);
+
         can->ReadPacketFrom(input_packet, sender_addr);
         if(ret = E_OK){
             printf("Received Packet\n");
@@ -71,7 +73,7 @@ int main(){
         }else{
             printf("No Packet Received\n");
         }
-        sleep(1);
+        
     }
     printf("Done\n");
 
