@@ -14,7 +14,8 @@ private:
     //Init variables
     std::string interfaceName;
     int channel;
-    long frequency;
+    kvBusParamsTq arbit;
+    kvBusParamsTq data;
 
 
     canHandle hnd;
@@ -24,7 +25,11 @@ private:
     bool connectionActive = false;
 
 public:
-    CANlib(std::string interfaceName, int channel, long frequency);
+    CANlib(std::string interfaceName,
+           int channel,
+           kvBusParamsTq paramArbitration,
+           kvBusParamsTq paramData
+           );
     ~CANlib();
 
     errorStatus Init();

@@ -8,9 +8,12 @@
 
 #define CHANNEL 0
 #define CANID 123
-#define FREQUENCY canBITRATE_250K
+#define FREQUENCY canFD_BITRATE_1M_80P
 
-#define PACKET_SIZE 10
+#define PACKET_SIZE 12
+
+kvBusParamsTq paramsArbitration = {80, 2, 2, 2, 75, 1};
+kvBusParamsTq paramsData = {10, 7, 2, 2, 0, 1};
 
 int terminate = 0;
 
@@ -38,6 +41,8 @@ void sig_handler(int signum){
 }
 
 int main(){
+    errorStatus ret;
+
     srand(time(0));
     signal(SIGINT,sig_handler); // Register signal handler
 
@@ -47,8 +52,11 @@ int main(){
     printf("Send Can ID: %d\n", CANID);
 
     printf("--- Initializing CANlib ---\n");
-    CANlib *can = new CANlib("CANlib",CHANNEL, FREQUENCY);
-    can->Init();
+    CANlib *can = new CANlib("CANlib",CHANNEL ,paramsArbitration, paramsData);
+    ret = can->Init();
+    if(ret != 0){
+	printf("Failed to initialize CAN (%d)\n", ret);
+    }
     printf("Done\n");
 
 
@@ -62,17 +70,19 @@ int main(){
 
         printf("Sending Packet:\n");
         print_packet_payload(output_packet);
-        errorStatus ret = can->SendPacket(output_packet, target_device);
+        ret = can->SendPacket(output_packet, target_device);
 
         sleep(1);
 
-        can->ReadPacketFrom(input_packet, sender_addr);
-        if(ret = E_OK){
+        ret = can->ReadPacketFrom(input_packet, sender_addr);
+        if(ret == E_OK){
             printf("Received Packet\n");
             print_packet_payload(input_packet);
-        }else{
+        }else if(ret = E_NOMSG){
             printf("No Packet Received\n");
-        }
+        }else{
+	    printf("Generic CANlib error\n");
+	}
         
     }
     printf("Done\n");

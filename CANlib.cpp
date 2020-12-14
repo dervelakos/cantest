@@ -11,9 +11,10 @@ static void checkStatus(std::string name, std::string id, canStatus stat)
   }
 } // checkStatus
 
-CANlib::CANlib(std::string interfaceName, int channel, long frequency){
+CANlib::CANlib(std::string interfaceName, int channel, kvBusParamsTq paramsArbitration, kvBusParamsTq paramsData){
     this->channel = channel;
-    this->frequency = frequency;
+    this->arbit = paramsArbitration;
+    this->data = paramsData;
 
     this->maxPacketLen = 64;
 }
@@ -27,17 +28,30 @@ errorStatus CANlib::Init(){
 
     canInitializeLibrary();
 
-    hnd = canOpenChannel(channel, canOPEN_EXCLUSIVE);
+    hnd = canOpenChannel(channel, canOPEN_EXCLUSIVE | canOPEN_CAN_FD | canOPEN_ACCEPT_LARGE_DLC);
     if (hnd < 0) {
         checkStatus(interfaceName, "canOpenChannel", ret);
         return E_NOK;
     }
 
-    ret = canSetBusParams(hnd, frequency, 0, 0, 0, 0, 0);
-    if (ret < 0){
+    ret = canSetBusParams(hnd, 1000000, 77, 2, 2, 1, 0);
+    if(ret < 0){
         checkStatus(interfaceName, "canSetBusParams", ret);
         return E_NOK;
+
     }
+
+    ret = canSetBusParamsFd(hnd, 8000000, 7, 2, 2);
+    if(ret < 0){
+        checkStatus(interfaceName, "canSetBusParamsFd", ret);
+        return E_NOK;
+
+    }
+    //ret = canSetBusParamsFdTq(hnd, arbit, data);
+    //if(ret < 0){
+    //    checkStatus(interfaceName, "canSetBusParamsFdTq", ret);
+    //    return E_NOK;
+    //}
 
     ret = canSetBusOutputControl(hnd, canDRIVER_NORMAL);
     if(ret < 0){
@@ -50,6 +64,12 @@ errorStatus CANlib::Init(){
         checkStatus(interfaceName, "canBusOn", ret);
         return E_NOK;
     }
+
+    //ret = canSetAcceptanceFilter(hnd, 0x00, 0x00, 0);
+    //if(ret < 0){
+    //    checkStatus(interfaceName, "canSetAcceptanceFilter", ret);
+    //    return E_NOK;
+    //}
 
     connectionActive = true;
     return E_OK;
@@ -79,16 +99,20 @@ errorStatus CANlib::RecvFrom(void *buf, size_t len, DestCAN *dest){
     canStatus stat;
     unsigned long timestamp;
     unsigned int msg_len;
-    unsigned int flags = canFDMSG_FDF;
+    unsigned int flags;
 
     long id;
     stat = canRead(hnd, &id, buf, &msg_len, &flags, &timestamp);
+    printf("canRead: %d\n", stat);
+    //if(stat == canERR_NOMSG){
+    //    return E_NOMSG;
+    //}
     dest->setCanId(id);
-    return (stat == 0 ? E_OK : E_NOK);
+    return (stat == canOK ? E_OK : E_NOK);
 }
 
 errorStatus CANlib::Write(void *buf, size_t len, DestCAN *dest){
-    canStatus stat = canWriteWait(hnd, dest->getCanId(), buf, len, canFDMSG_FDF, CAN_WRITE_TIMEOUT);
+    canStatus stat = canWriteWait(hnd, dest->getCanId(), buf, len, canFDMSG_FDF | canFDMSG_BRS, CAN_WRITE_TIMEOUT);
     return (stat == 0 ? E_OK : E_NOK);
 }
 
